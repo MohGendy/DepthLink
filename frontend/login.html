@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | DepthLink</title>
+    <link rel="shortcut icon" href="/assets/images/logo.jpg" type="image/x-icon">
+    <link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="bg-gradient-1 text-white">
+
+    <div class="container d-flex flex-column justify-content-center align-items-center vh-100">
+        <div class="card glass-bg p-4 shadow-lg" style="max-width: 400px; width: 100%;">
+            <div class="text-center">
+                <img src="/assets/images/logo.jpg" alt="Logo" class="rounded-circle mb-3" height="60">
+                <h2 class="mb-4">Welcome Back</h2>
+            </div>
+
+            <form action="/login" method="POST">
+                <div class="mb-3">
+                    <label for="userName" class="form-label">User Name</label>
+                    <input type="text" class="form-control" id="userName" name="userName" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <input type="text" hidden class="form-control" id="d" name="d" value="/">
+
+                <button type="submit" class="btn btn-primary w-100">Login</button>
+
+
+            </form>
+        </div>
+    </div>
+
+    <script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+    let q = window.location.search;
+    let p = new URLSearchParams(q);
+    if(p.get("d")){
+        document.getElementById("d").value = p.get("d");
+    }else{
+        document.getElementById("d").value = "/";
+    }
+    if(p.get("msg")){
+        alert("Wrong username or password");
+    }
+    
+</script>
+</body>
+</html>

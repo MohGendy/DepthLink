@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensors | DepthLink</title>
+  <link rel="shortcut icon" href="/assets/images/logo.jpg" type="image/x-icon">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class=" text-white min-vh-100">
+  <!-- Navbar -->
+  <header class="navbar navbar-expand-lg bg-gradient-1 text-white shadow">
+    <div class="container-fluid">
+      <a class="navbar-brand text-white fw-bold" href="/">
+        <img src="/assets/images/logo.jpg" alt="Logo" class="rounded-circle me-2" height="40" width="40"> DepthLink
+      </a>
+      <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/"><i class="bi-house"></i> Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white dashboard" href="/dashboard"><i class="bi-clipboard2-data"></i> Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active text-white sensors" href="/sensors"><i class="bi-cpu"></i> Sensors</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white readings" href="/readings"><i class="bi-journal-text"></i> Readings</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mt-5">
+    <!-- Header with Sensors title and Add Sensor button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>Sensors</h2>
+      <!-- The Add button triggers the modal -->
+      <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addSensorModal">
+        Add Sensor
+      </button>
+    </div>
+
+    <!-- Sensor Cards -->
+    <div class="row" id="sensorCards">
+
+
+    </div>
+  </main>
+
+  <!-- Add Sensor Modal -->
+  <div class="modal fade" id="addSensorModal" tabindex="-1" aria-labelledby="addSensorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content glass-bg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="addSensorModalLabel">Add New Sensor</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addSensorForm">
+            <div class="mb-3">
+              <label for="name" class="form-label">Sensor Name</label>
+              <input type="text" class="form-control" id="name" name="name" placeholder="Enter sensor name" required>
+            </div>
+            <div class="mb-3">
+              <label for="warning" class="form-label">Warning Level</label>
+              <input type="number" class="form-control" id="warning" name="warning" placeholder="Enter Warning Level" required>
+            </div>
+            <div class="mb-3">
+              <label for="height" class="form-label">Sensor Height</label>
+              <input type="number" class="form-control" id="height" name="height" placeholder="Enter Sensor Height" required>
+            </div>
+
+            <button type="submit" data-bs-dismiss="modal" class="btn btn-success">Add Sensor</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- edit sensor modal -->
+  <div class="modal fade" id="editSensorModal" tabindex="-1" aria-labelledby="editrModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content glass-bg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title" id="editrModalLabel">Add New Sensor</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editSensorForm">
+            <input type="number" class="form-control" id="id" name="id" hidden required>
+            <div class="mb-3">
+              <label for="name" class="form-label">Sensor Name</label>
+              <input type="text" class="form-control" id="name" name="name" placeholder="Enter sensor name" required>
+            </div>
+            <div class="mb-3">
+              <label for="warning" class="form-label">Warning Level</label>
+              <input type="number" class="form-control" id="warning" name="warning" placeholder="Enter Warning Level" required>
+            </div>
+            <div class="mb-3">
+              <label for="height" class="form-label">Sensor Height</label>
+              <input type="number" class="form-control" id="height" name="height" placeholder="Enter Sensor Height" required>
+            </div>
+            <div class="mb-3">
+                <button type="button" id="clear" data-bs-dismiss="modal" class="btn btn-danger">Clear Reaadings</button>
+            </div>
+
+            <button type="submit" data-bs-dismiss="modal" class="btn btn-success">Save Changes</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+      <script src="/assets/vendor/socket/client-dist/socket.io.min.js"></script>
+
+    <script>
+    const editSensorForm = document.getElementById("editSensorForm")
+    const addSensorForm = document.getElementById("addSensorForm")
+    const clear = document.getElementById("clear")
+
+    const socket = io();
+
+    function fetchSensorData() {
+      fetch('/reading/find?num=1')
+        .then(response => response.json())
+        .then(data => {
+          let sensorHTML = '';
+
+          data.forEach(sensor => {
+            console.log(sensor);
+            
+            const lastReading = sensor.readings[0];
+            const isWarning = (lastReading?lastReading.value > sensor.warning:0)
+            const statusClass = isWarning ? 'status-warning' : 'status-normal';
+            const statusText = isWarning ? 'Warning' : 'Normal';
+
+            sensorHTML += `
+              <div class="col-md-4 mb-4">
+                <div class="card glass-bg text-white">
+                  <div class="card-body">
+                    <h5 class="card-title">${sensor.name}</h5>
+                    <p><strong>Value:</strong> ${lastReading?lastReading.value:"no readings yet"}</p>
+                    <p><strong>Time:</strong> ${lastReading?new Date(lastReading.createdAt).toLocaleString():"no readings yet"}</p>
+                    <p><strong>Status:</strong> <span class="badge ${statusClass}">${statusText}</span></p>
+                    <div class="d-flex justify-content-between mt-3">
+                      <button class="btn btn-warning btn-sm" data-edit-id="${sensor.id}" data-bs-toggle="modal" data-bs-target="#editSensorModal">Edit</button>
+                      <button class="btn btn-danger btn-sm" data-delete-id="${sensor.id}">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+
+          document.getElementById('sensorCards').innerHTML = sensorHTML;
+        })
+        .catch(error => console.error('Error fetching sensor data:', error)).finally(()=>{
+
+            init()
+        })
+    }
+
+    // Fetch sensor data on page load
+    fetchSensorData();
+
+    // Listen for real-time updates
+    socket.on("new", (data) => {
+      console.log("New sensor data:", data);
+
+      data.forEach(sensorUpdate => {
+        const sensorCard = document.querySelector(`div[data-sensor-id="${sensorUpdate.sensorID}"]`);
+
+        if (sensorCard) {
+          const isWarning = sensorUpdate.value > sensorUpdate.warning;
+          const statusClass = isWarning ? 'status-warning' : 'status-normal';
+          const statusText = isWarning ? 'Warning' : 'Normal';
+
+          sensorCard.querySelector('.value-text').textContent = sensorUpdate.value;
+          sensorCard.querySelector('.time-text').textContent = new Date(sensorUpdate.createdAt).toLocaleString();
+          sensorCard.querySelector('.status-badge').className = `badge ${statusClass}`;
+          sensorCard.querySelector('.status-badge').textContent = statusText;
+        } else {
+          // If sensor doesn't exist, fetch all sensors again
+          fetchSensorData();
+        }
+      });
+    });
+
+    function init(){
+        let delBtns = document.querySelectorAll("[data-delete-id]")
+        let editBtns = document.querySelectorAll("[data-edit-id]")
+
+        delBtns.forEach(el =>{
+            el.addEventListener("click", (e)=>{
+                id = e.target.dataset.deleteId
+                fetch(`/sensor/destroy?id=${id}`,{
+                    method: "DELETE",
+                }).then(res=>{
+                    if(res.status == 200){
+                        fetchSensorData();
+                    }else{
+                        alert("some error happend")
+                    }
+                })
+                
+            })
+        })
+        editBtns.forEach(el =>{
+            el.addEventListener("click", (e)=>{
+                let id = e.target.dataset.editId
+                getData(id)                
+            })
+        })
+    }
+
+    function getData(id) {
+        fetch(`/sensor/find?id=${id}`).then(res=>res.json()).then(sen=>{
+            let inputs = editSensorForm.elements
+            inputs["name"].value = sen.name
+            inputs["id"].value = sen.id
+            inputs["height"].value = sen.height
+            inputs["warning"].value = sen.warning
+        })
+    }
+
+    addSensorForm.addEventListener("submit",(e)=>{
+        e.preventDefault()
+        let inputs = e.target.elements;
+        let data = {
+            name: inputs.name.value,
+            height: inputs.height.value,
+            warning: inputs.warning.value
+        }
+        fetch("/sensor/create",{
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        }).then(res=>{
+            if(res.status == 200){
+                fetchSensorData()
+            }else{
+                alert("some error happend")
+            }
+        })       
+
+    })
+
+    editSensorForm.addEventListener("submit",(e)=>{
+        e.preventDefault()
+        console.log("subm");
+        
+        let inputs = e.target.elements;
+        let data = {
+            id : inputs.id.value,
+            name: inputs.name.value,
+            height: inputs.height.value,
+            warning: inputs.warning.value
+        }
+        console.log(data);
+        
+        fetch("/sensor/update",{
+            method: "put",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        }).then(res=>{           
+            if(res.status == 200){
+                fetchSensorData()
+            }else{
+                alert("some error happend")
+            }
+        })
+    })
+
+    clear.addEventListener("click",(e)=>{
+        let id = editSensorForm.elements.id.value
+        let password = prompt("Enter the secrete key to clear the data of this sensor");
+        fetch(`/reading/clear?key=${password}&id=${id}`,{
+            method: "DELETE",
+        }).then(res=>{
+            if(res.status == 200){
+                alert("data cleared");
+                fetchSensorData()
+            }else{
+                console.log(res)
+                alert(`some error happend , error message is :\n${res.statusText}`)
+            }
+        })
+    })
+  </script>
+
+</body>
+</html>

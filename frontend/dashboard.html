@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | DepthLink</title>
+  <link rel="shortcut icon" href="/assets/images/logo.jpg" type="image/x-icon">
+  <link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <style>
+    /* Glass effect for containers */
+    .glass-bg {
+      background: linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0.2));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 20px;
+      color: white;
+      margin-bottom: 2rem;
+    }
+    .chart-container {
+      position: relative;
+      height: 400px;
+      width: 100%;
+    }
+    /* Statistics table styling */
+    .stats-table {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stats-table thead {
+      background: linear-gradient(45deg, #7f4bb7, #212f60);
+    }
+    .stats-table th,
+    .stats-table td {
+      padding: 1rem;
+      border: none;
+      /* color: #fff; */
+      text-align: center;
+    }
+    .stats-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class=" text-white">
+  <!-- Navbar -->
+  <header class="navbar navbar-expand-lg bg-gradient-1 text-white shadow">
+    <div class="container-fluid">
+      <a class="navbar-brand text-white fw-bold" href="/">
+        <img src="/assets/images/logo.jpg" alt="Logo" class="rounded-circle me-2" height="40" width="40"> DepthLink
+      </a>
+      <button class="navbar-toggler border-0 text-white" 
+              type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link text-white" href="/"><i class="bi-house"></i> Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active text-white dashboard" href="/dashboard">
+              <i class="bi-clipboard2-data"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white sensors" href="/sensors"><i class="bi-cpu"></i> Sensors</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white readings" href="/readings"><i class="bi-journal-text"></i> Readings</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Content -->
+  <main class="container mt-5">
+    <h2 class="mb-4">Dashboard</h2>
+
+    <!-- Chart Section -->
+    <div class="glass-bg mb-4">
+      <h4>Sensor Readings Over Time</h4>
+      <div class="chart-container">
+        <canvas id="sensorChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="glass-bg">
+      <h4>Sensor Statistics</h4>
+      <div class="table-responsive">
+        <table class="table stats-table">
+          <thead>
+            <tr>
+              <th>Sensor</th>
+              <th>Max Value</th>
+              <th>Min Value</th>
+            </tr>
+          </thead>
+          <tbody id="statsTableBody">
+            <!-- Statistics rows will be added dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>      
+  <script src="/assets/vendor/socket/client-dist/socket.io.min.js"></script>
+
+  <script>
+    // Colors array to assign distinct colors for sensor datasets.
+    let sensorChart
+    let statistics = []
+    const colors = [
+      { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' },
+      { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' },
+      { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' },
+      // Add more colors if needed.
+    ];
+
+    const ctx = document.getElementById('sensorChart').getContext('2d');
+
+    // Fetch the sensor data from the API endpoint
+    fetch('/reading/find?num=50')
+      .then(response => response.json())
+      .then(data => {
+        // Prepare chart datasets and compute statistics dynamically:
+        let datasets = [];
+        let statsHTML = '';
+
+        data.forEach((sensor, index) => {
+          // Map readings for chart as an array of objects {x: time, y: value}
+          let sensorData = sensor.readings.map(reading => ({
+            x: reading.createdAt,
+            y: reading.value
+          }));
+          // Sort the sensor readings by timestamp
+          sensorData.sort((a, b) => new Date(a.x) - new Date(b.x));
+          
+          const color = colors[index % colors.length];
+          datasets.push({
+            label: sensor.name,
+            data: sensorData,
+            borderColor: color.borderColor,
+            backgroundColor: color.backgroundColor,
+            fill: false,
+            tension: 0.3
+          });
+
+          // Extract sensor values to compute max and min.
+          const values = sensor.readings.map(r => r.value);
+          statistics.push({id:sensor.id,name:sensor.name,max:Math.max(...values),min:Math.min(...values)})
+
+        });
+        states()
+        // Create the line chart using the fetched sensor datasets.
+        sensorChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                labels: {
+                  color: '#ffd700' // Gold color for legend text
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: 'minute'
+                },
+                ticks: {
+                  color: '#fff'
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.1)'
+                }
+              },
+              y: {
+                ticks: {
+                  color: '#fff'
+                },
+                grid: {
+                  color: 'rgba(255,255,255,0.1)'
+                }
+              }
+            }
+          }
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching sensor data:', error);
+      });
+
+      const socket = io();
+
+        socket.on("connect", () => {
+            console.log("connected");
+        });
+
+
+        socket.on("new",(data)=>{
+            console.log(data);
+            data.forEach((data,i) => {
+                const sensorDataset = sensorChart.data.datasets[i];
+                console.log(sensorDataset);
+                
+                if (sensorDataset) {
+                    sensorDataset.data.push({ x: new Date(), y: data.value });
+                    
+                    // Optional: keep only the last N points
+                    if (sensorDataset.data.length > 50) {
+                        sensorDataset.data.shift();
+                    }
+                    console.log("data added");
+                    sensorChart.data.datasets[i] = sensorDataset;
+                    sensorChart.update(); // Prevent full reanimation
+                }
+                let ind = statistics.findIndex((elem)=> {return elem.id==data.sensorID})
+                console.log(ind , statistics , data.value );
+                
+                if(ind!=-1){
+                    statistics[ind].max = Math.max(statistics[ind].max, data.value);
+                    statistics[ind].min = Math.min(statistics[ind].min, data.value);
+                }
+                
+            });
+            
+            states()
+
+        })
+
+        function states(){
+            console.log(statistics);
+            
+            let dom = document.getElementById('statsTableBody')
+            dom.innerHTML = ""
+            statistics.forEach(elem=>{
+                dom.innerHTML += `
+                    <tr>
+                          <td>${elem.name}</td>
+                          <td>${elem.max==-Infinity?"No Readings Yet":elem.max}</td>
+                          <td>${elem.min==Infinity?"No Readings Yet":elem.min}</td>
+                    </tr>
+                `
+            })
+
+
+        }
+  </script>
+</body>
+</html>
